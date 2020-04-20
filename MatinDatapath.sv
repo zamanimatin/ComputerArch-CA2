@@ -53,8 +53,12 @@ module ALU32Bit (input [31:0]A, B, input [2:0]ALUop, output reg[31:0] ALUout, ou
             ALUout = A + B;
         else if (ALUop == 3'b110) // case SUB
             ALUout = A - B;
-        else if (ALUop == 3'b111) // case SLT
-            ALUout = A - B;
+        else if (ALUop == 3'b111)begin // case SLT
+            if (A < B)
+                ALUout = 32'b00000000000000000000000000000001;
+            else
+                ALUout = 32'b00000000000000000000000000000000;
+        end
         if(ALUout == 32'b0)
             ZeroFlag = 1'b1;
     end
@@ -77,7 +81,7 @@ module ZEROExtender(input [25:0]in, output reg [27:0]out);
         out = {in, 2'b00};
     end
 endmodule
-
+// CHECK REGISTER FILE AND DATA MEMORY
 module RegFile (input [4:0]ReadReg1, ReadReg2, input [4:0]WriteReg, input [31:0]Writedata, input clk, rst, regWriteSignal, output reg [31:0]ReadData1, ReadData2);
     reg [31:0] REGFILE [0:31];
 
@@ -99,17 +103,18 @@ module RegFile (input [4:0]ReadReg1, ReadReg2, input [4:0]WriteReg, input [31:0]
     end
 endmodule
 
-module DataMemory (input [31:0]address, writedata, input MemRead, MemWrite, output reg [31:0]ReadData);
+module DataMemory (input [31:0]address, writedata, input MemRead, MemWrite, clk, rst, output reg [31:0]ReadData);
     reg [31:0] DMemory [0:15];
     initial begin
         $sreadmemh("DataMemory.data", DMemory);
     end
-    always@(address, writedata, MemRead, MemWrite) begin
+    always @(address, MemRead) begin
+        ReadData = DMemory[address[31:2]];
+    end
+    always@(address, writedata, MemWrite, posedge clk, posedge rst) begin
         ReadData = 32'b00000000000000000000000000000000;
         if (writedata)
             DMemory[address] = writedata;
-        else if (MemRead)
-            ReadData = DMemory[address];
     end
 endmodule
 
