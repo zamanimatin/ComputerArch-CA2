@@ -100,7 +100,7 @@ module RegFile (input [4:0]ReadReg1, ReadReg2, input [4:0]WriteReg, input [31:0]
 endmodule
 
 module DataMemory (input [31:0]address, writedata, input MemRead, MemWrite, output reg [31:0]ReadData);
-    reg [31:0] DMemory [0:16];
+    reg [31:0] DMemory [0:15];
     initial begin
         $sreadmemh("DataMemory.data", DMemory);
     end
@@ -113,6 +113,21 @@ module DataMemory (input [31:0]address, writedata, input MemRead, MemWrite, outp
     end
 endmodule
 
+module InstructionMemory(input rst, input [31:0]addressin, output reg [31:0]instruction);
+    reg [31:0] InstructionMemory [0:15];
+    initial begin
+        $sreadmemh("instruction.data", InstructionMemory);
+    end
+    always @(posedge rst, addressin)begin
+        instruction = 32'b00000000000000000000000000000000;
+        if(rst)
+            for(integer i = 0; i < 16; i++)begin
+                InstructionMemory[i] = 32'b00000000000000000000000000000000;
+            end
+        else
+            instruction = InstructionMemory[addressin];
+    end
+endmodule
 module MIPSDatapath (input clk, rst, ldinpc, initpc, JumpSrc, PCsignal, RegDst, WriteSrc, RegWSrc, RegWrite, ALUSrc, ALUoperation, MemRead, MemWrite, PCSrc, MemtoReg, output reg [31:0]instruction, output reg zeroflag);
     wire [31:0] wire1, container4, addresswire, pcadderout, wire2, shl2outsext, Readdata1, Readdata2, sextout, mainALUout, DataMemReaddataout;
     wire [31:0] ALUMUXin, MemtoRegfile, jumpmuxin, jumpmuxout, pcin, instructionwire, wire3, writedatain;
@@ -141,8 +156,5 @@ module MIPSDatapath (input clk, rst, ldinpc, initpc, JumpSrc, PCsignal, RegDst, 
     MUX32Bit MUX8(mainALUout, DataMemReaddataout, MemtoReg, MemtoRegfile);
     RegFile MainRegFile(instructionwire[25:21], instructionwire[20:16], writeRegIn, writedatain, clk, rst, RegWrite, Readdata1, Readdata2);
     DataMemory MainDataMemory(mainALUout, Readdata2, MemRead, MemWrite, DataMemReaddataout);
-    reg [31:0] InstructionMemory [0:15];
-    initial begin
-        $sreadmemh("instruction.data", InstructionMemory);
-    end
+    
 endmodule
