@@ -54,7 +54,7 @@ module ALU32Bit (input [31:0]A, B, input [2:0]ALUop, output reg[31:0] ALUout, ou
         else if (ALUop == 3'b110) // case SUB
             ALUout = A - B;
         else if (ALUop == 3'b111)begin // case SLT
-            if (A < B)
+            if (A < B)  // supposed that A and B are signed check whether comparison happens right?
                 ALUout = 32'b00000000000000000000000000000001;
             else
                 ALUout = 32'b00000000000000000000000000000000;
@@ -81,11 +81,11 @@ module ZEROExtender(input [25:0]in, output reg [27:0]out);
         out = {in, 2'b00};
     end
 endmodule
+
 // CHECK REGISTER FILE AND DATA MEMORY
 module RegFile (input [4:0]ReadReg1, ReadReg2, input [4:0]WriteReg, input [31:0]Writedata, input clk, rst, regWriteSignal, output reg [31:0]ReadData1, ReadData2);
     reg [31:0] REGFILE [0:31];
 
-    // May a readmemh command needed
     always @(ReadReg1, ReadReg2) begin
         {ReadData1, ReadData2} = 64'b0;
         ReadData1 = REGFILE[ReadReg1];
@@ -133,6 +133,8 @@ module InstructionMemory(input rst, input [31:0]addressin, output reg [31:0]inst
             instruction = InstructionMemory[addressin];
     end
 endmodule
+
+
 module MIPSDatapath (input clk, rst, ldinpc, initpc, JumpSrc, PCsignal, RegDst, WriteSrc, RegWSrc, RegWrite, ALUSrc, ALUoperation, MemRead, MemWrite, PCSrc, MemtoReg, output reg [31:0]instruction, output reg zeroflag);
     wire [31:0] wire1, container4, addresswire, pcadderout, wire2, shl2outsext, Readdata1, Readdata2, sextout, mainALUout, DataMemReaddataout;
     wire [31:0] ALUMUXin, MemtoRegfile, jumpmuxin, jumpmuxout, pcin, instructionwire, wire3, writedatain;
