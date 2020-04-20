@@ -78,10 +78,15 @@ module ZEROExtender(input [25:0]in, output reg [27:0]out);
     end
 endmodule
 
-module RegFile (input [31:0]ReadReg1, ReadReg2, input [4:0]WriteReg, input [31:0]Writedata, input clk, rst, regWriteSignal, output reg [31:0]ReadData1, ReadData2);
+module RegFile (input [4:0]ReadReg1, ReadReg2, input [4:0]WriteReg, input [31:0]Writedata, input clk, rst, regWriteSignal, output reg [31:0]ReadData1, ReadData2);
     reg [31:0] REGFILE [0:31];
 
     // May a readmemh command needed
+    always @(ReadReg1, ReadReg2) begin
+        {ReadData1, ReadData2} = 64'b0;
+        ReadData1 = REGFILE[ReadReg1];
+        ReadData2 = REGFILE[ReadReg2];
+    end
     always @(posedge clk, posedge rst)begin
         {ReadData1, ReadData2} = 64'b0;
         if (rst) begin
@@ -91,9 +96,6 @@ module RegFile (input [31:0]ReadReg1, ReadReg2, input [4:0]WriteReg, input [31:0
         end
         if (regWriteSignal)
             REGFILE[WriteReg] = Writedata;
-        else
-            ReadData1 = REGFILE[ReadReg1];
-            ReadData2 = REGFILE[ReadReg2];
     end
 endmodule
 
