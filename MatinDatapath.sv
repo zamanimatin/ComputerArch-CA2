@@ -111,26 +111,26 @@ module DataMemory (input [31:0]address, writedata, input MemRead, MemWrite, clk,
     always @(address, MemRead) begin
         ReadData = DMemory[address[31:2]];
     end
-    always@(address, writedata, MemWrite, posedge clk, posedge rst) begin
+    always@( posedge clk, posedge rst) begin
         ReadData = 32'b00000000000000000000000000000000;
         if (writedata)
-            DMemory[address] = writedata;
+            DMemory[address[31:2]] = writedata;
     end
 endmodule
 
 module InstructionMemory(input rst, input [31:0]addressin, output reg [31:0]instruction);
-    reg [31:0] InstructionMemory [0:15];
+    reg [31:0] instructionMemory [0:15];
     initial begin
-        $sreadmemh("instruction.data", InstructionMemory);
+        $sreadmemh("instruction.data", instructionMemory);
     end
     always @(posedge rst, addressin)begin
         instruction = 32'b00000000000000000000000000000000;
         if(rst)
             for(integer i = 0; i < 16; i++)begin
-                InstructionMemory[i] = 32'b00000000000000000000000000000000;
+                instructionMemory[i] = 32'b00000000000000000000000000000000;
             end
         else
-            instruction = InstructionMemory[addressin];
+            instruction = instructionMemory[addressin];
     end
 endmodule
 
@@ -163,5 +163,5 @@ module MIPSDatapath (input clk, rst, ldinpc, initpc, JumpSrc, PCsignal, RegDst, 
     MUX32Bit MUX8(mainALUout, DataMemReaddataout, MemtoReg, MemtoRegfile);
     RegFile MainRegFile(instructionwire[25:21], instructionwire[20:16], writeRegIn, writedatain, clk, rst, RegWrite, Readdata1, Readdata2);
     DataMemory MainDataMemory(mainALUout, Readdata2, MemRead, MemWrite, DataMemReaddataout);
-    
+    InstructionMemory MainInstrMemory(rst, addresswire, instructionwire);
 endmodule
