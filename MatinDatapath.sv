@@ -54,7 +54,7 @@ module ALU32Bit (input [31:0]A, B, input [2:0]ALUop, output reg[31:0] ALUout, ou
         else if (ALUop == 3'b110) // case SUB
             ALUout = A - B;
         else if (ALUop == 3'b111)begin // case SLT
-            if (A < B)  // supposed that A and B are signed check whether comparison happens right?
+            if ($signed(A) < $signed(B))  // supposed that A and B are signed check whether comparison happens right?
                 ALUout = 32'b00000000000000000000000000000001;
             else
                 ALUout = 32'b00000000000000000000000000000000;
@@ -104,43 +104,47 @@ module RegFile (input [4:0]ReadReg1, ReadReg2, input [4:0]WriteReg, input [31:0]
 endmodule
 
 module DataMemory (input [31:0]address, writedata, input MemRead, MemWrite, clk, rst, output reg [31:0]ReadData);
-    reg [31:0] DMemory [0:15];
-    initial begin
-        $sreadmemh("DataMemory.data", DMemory);
+    reg [31:0] DMemory [0:512];
+    always @(negedge rst) begin
+        $readmemb("DataMemory.mem", DMemory);
     end
     always @(address, MemRead) begin
-        ReadData = DMemory[address[31:2]];
+        ReadData = 32'b00000000000000000000000000000000;
+        if (MemRead)
+            ReadData = DMemory[address[31:2]];
     end
     always@( posedge clk, posedge rst) begin
-        ReadData = 32'b00000000000000000000000000000000;
-        if (writedata)
+        if (rst)
+            for(integer i = 0; i < 512; i++)begin
+                DMemory[i] = 32'b00000000000000000000000000000000;
+            end
+        else if (MemWrite)
             DMemory[address[31:2]] = writedata;
     end
 endmodule
 
 module InstructionMemory(input rst, input [31:0]addressin, output reg [31:0]instruction);
-    reg [31:0] instructionMemory [0:15];
-    initial begin
-        $sreadmemh("instruction.data", instructionMemory);
+    reg [31:0] instructionMemory [0:512];
+    always @(negedge rst) begin
+        $readmemb("instructionb.mem", instructionMemory);
     end
     always @(posedge rst, addressin)begin
         instruction = 32'b00000000000000000000000000000000;
         if(rst)
-            for(integer i = 0; i < 16; i++)begin
+            for(integer i = 0; i < 512; i++)begin
                 instructionMemory[i] = 32'b00000000000000000000000000000000;
             end
         else
-            instruction = instructionMemory[addressin];
+            instruction = instructionMemory[addressin[31:2]];
     end
 endmodule
 
 
-module MIPSDatapath (input clk, rst, ldinpc, initpc, JumpSrc, PCsignal, RegDst, WriteSrc, RegWSrc, RegWrite, ALUSrc, ALUoperation, MemRead, MemWrite, PCSrc, MemtoReg, output reg [31:0]instruction, output reg zeroflag);
+module MIPSDatapath (input [2:0]ALUoperation, input clk, rst, ldinpc, initpc, JumpSrc, PCsignal, RegDst, WriteSrc, RegWSrc, RegWrite, ALUSrc, MemRead, MemWrite, PCSrc, MemtoReg, output [31:0]instructionwire, output zeroflag);
     wire [31:0] wire1, container4, addresswire, pcadderout, wire2, shl2outsext, Readdata1, Readdata2, sextout, mainALUout, DataMemReaddataout;
-    wire [31:0] ALUMUXin, MemtoRegfile, jumpmuxin, jumpmuxout, pcin, instructionwire, wire3, writedatain;
+    wire [31:0] ALUMUXin, MemtoRegfile, jumpmuxin, jumpmuxout, pcin, writedatain;
     wire [27:0] shl2instruction;
-    wire [4:0] writeregin, muxin31;
-    wire zeroflagout;
+    wire [4:0] writeRegIn, muxin31, wire3;
     wire cout1, cout2;
 
     MUX32Bit MUX1(Readdata1, jumpmuxin, JumpSrc, jumpmuxout);
@@ -158,10 +162,10 @@ module MIPSDatapath (input clk, rst, ldinpc, initpc, JumpSrc, PCsignal, RegDst, 
     assign muxin31 = 5'b11111; // 31 value
     MUX5Bit MUX5(wire3, muxin31, RegWSrc, writeRegIn);
     MUX32Bit MUX6(MemtoRegfile, pcadderout, WriteSrc, writedatain);
-    MUX32Bit MUX7(Readdata1, sextout, ALUSrc, ALUMUXin);
-    ALU32Bit MainALU(Readdata1, ALUMUXin, ALUoperation, mainALUout, zeroflagout);
+    MUX32Bit MUX7(Readdata2, sextout, ALUSrc, ALUMUXin);
+    ALU32Bit MainALU(Readdata1, ALUMUXin, ALUoperation, mainALUout, zeroflag);
     MUX32Bit MUX8(mainALUout, DataMemReaddataout, MemtoReg, MemtoRegfile);
     RegFile MainRegFile(instructionwire[25:21], instructionwire[20:16], writeRegIn, writedatain, clk, rst, RegWrite, Readdata1, Readdata2);
-    DataMemory MainDataMemory(mainALUout, Readdata2, MemRead, MemWrite, DataMemReaddataout);
+    DataMemory MainDataMemory(mainALUout, Readdata2, MemRead, MemWrite, clk, rst, DataMemReaddataout);
     InstructionMemory MainInstrMemory(rst, addresswire, instructionwire);
 endmodule
